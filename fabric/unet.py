@@ -30,8 +30,7 @@ def q_sample(model, x_start, t):
 
 
 def sigma_to_t(model, sigma):
-    model_wrap = comfy.samplers.wrap_model(model.model)
-    sampling = model_wrap.inner_model.model_sampling
+    sampling = get_model_sampling(model)
 
     # LCM
     if str(sampling) == "ModelSamplingAdvanced()":
@@ -46,9 +45,8 @@ def sigma_to_t(model, sigma):
 
 
 def get_timesteps(model, steps, sampler, scheduler, denoise, device="cpu"):
-    real_model = model.model
     sampler = comfy.samplers.KSampler(
-        real_model, steps=steps, device=device, sampler=sampler,
+        model, steps=steps, device=device, sampler=sampler,
         scheduler=scheduler, denoise=denoise, model_options=model.model_options
     )
     return sigma_to_t(model, sampler.sigmas)
@@ -56,5 +54,10 @@ def get_timesteps(model, steps, sampler, scheduler, denoise, device="cpu"):
 
 def undo_scaling(model, sigma, noise):
     sigma = sigma.view(sigma.shape[:1] + (1,) * (noise.ndim - 1))
-    sigma_data = comfy.samplers.wrap_model(model.model).inner_model.model_sampling.sigma_data
+    sigma_data = get_model_sampling(model).sigma_data
     return noise * (sigma ** 2 + sigma_data ** 2) ** 0.5  # Multiply to cancel out the division in comfy
+
+
+def get_model_sampling(model_patcher):
+    base_model = model_patcher.model
+    return base_model.model_sampling
